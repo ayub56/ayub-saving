@@ -37,39 +37,63 @@ const AlertCard: React.FC<{ alert: Alert }> = ({ alert }) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ data, loading }) => {
-  // State for Loan Allocation Slider
+  // State for Loan Allocation Slider and Dynamic Updates
   const [loanAllocationPercent, setLoanAllocationPercent] = useState<number>(0);
   const [calculatedPayoff, setCalculatedPayoff] = useState<string>('');
+  const [dynamicAdvice, setDynamicAdvice] = useState<string>('');
+  const [adviceColor, setAdviceColor] = useState<string>('text-slate-300');
 
-  // Initialize slider when data loads
+  // Initialize slider and advice when data loads
   useEffect(() => {
     if (data?.loanStrategy?.hasLoans && data.totalIncome > 0) {
+      // Default to suggested payment percent, or 10% if suggested is 0/missing
       const suggestedPercent = Math.round((data.loanStrategy.suggestedPayment / data.totalIncome) * 100);
       setLoanAllocationPercent(suggestedPercent > 0 ? suggestedPercent : 10);
       setCalculatedPayoff(data.loanStrategy.estimatedPayoffDate);
+      setDynamicAdvice(data.loanStrategy.advice);
+      setAdviceColor('text-slate-300');
     }
   }, [data]);
 
-  // Recalculate payoff when slider moves
+  // Recalculate payoff and update advice when slider moves
   useEffect(() => {
     if (!data?.loanStrategy?.hasLoans || !data?.loanStrategy?.totalPrincipal) return;
 
     const monthlyAlloc = (data.totalIncome * loanAllocationPercent) / 100;
+    const suggested = data.loanStrategy.suggestedPayment || 0;
     
+    // Payoff Calculation
     if (monthlyAlloc <= 0) {
       setCalculatedPayoff("Never");
+      setDynamicAdvice("You must allocate some income to pay off the loan.");
+      setAdviceColor("text-red-400");
       return;
     }
 
     // Simple payoff calculation: Principal / Monthly Payment
-    // In a real app, this would include interest rate compounding (amortization)
     const monthsToPayoff = Math.ceil(data.loanStrategy.totalPrincipal / monthlyAlloc);
-    
     const futureDate = new Date();
     futureDate.setMonth(futureDate.getMonth() + monthsToPayoff);
-    
     const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
     setCalculatedPayoff(formatter.format(futureDate));
+    
+    // Dynamic Advice Logic
+    if (suggested > 0) {
+      if (monthlyAlloc < suggested * 0.8) {
+        setDynamicAdvice(`Warning: Paying less than the suggested $${suggested.toLocaleString()} will significantly extend your debt and increase total interest.`);
+        setAdviceColor("text-orange-400");
+      } else if (monthlyAlloc > suggested * 1.2) {
+        setDynamicAdvice(`Excellent! Paying more than the suggested $${suggested.toLocaleString()} will save you money on interest and get you debt-free sooner.`);
+        setAdviceColor("text-emerald-400");
+      } else {
+        setDynamicAdvice(data.loanStrategy.advice);
+        setAdviceColor("text-slate-300");
+      }
+    } else {
+       // Fallback if no specific suggested payment
+       setDynamicAdvice(data.loanStrategy.advice);
+       setAdviceColor("text-slate-300");
+    }
     
   }, [loanAllocationPercent, data]);
 
@@ -211,7 +235,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data, loading }) => {
                   <div className="text-lg font-medium text-blue-100">{data.loanStrategy.strategyName}</div>
                 </div>
                 
-                <p className="text-slate-300 text-sm leading-relaxed">{data.loanStrategy.advice}</p>
+                {/* Dynamic Advice Text with Color */}
+                <p className={`${adviceColor} text-sm leading-relaxed transition-colors duration-300`}>
+                    {dynamicAdvice}
+                </p>
 
                 {/* Interactive Slider Section */}
                 <div className="mt-4 pt-4 border-t border-slate-700">
