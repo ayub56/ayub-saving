@@ -1,0 +1,5 @@
+{
+  "name": "SmartSaving",
+  "description": "An AI-powered personal finance assistant that analyzes your income, expenses, and loans to generate a personalized financial plan with interactive visualizations.",
+  "requestFramePermissions": []
+}
